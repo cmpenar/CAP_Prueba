@@ -1053,10 +1053,6 @@
       if (!available.length) {
         comparisonTabs.innerHTML = 'No se detectaron grupos de Escenario 1, Escenario 2 o Escenario 3 en el WebMap. Revisa que los grupos o capas incluyan esos nombres.';
         return;
-      }
-
-      comparisonTabs.innerHTML = `<strong>Escenario activo del mapa:</strong> ${getScenarioLabel(currentComparison)}. Solo se muestran indicadores de este grupo.`;
-    }
 
     function renderMetricTabs() {
       metricTabs.innerHTML = '';
