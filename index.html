@@ -1117,12 +1117,6 @@
 
       if (selectedLayers.length) {
         
-        if (arcgisView) {
-          const firstLayer = selectedLayers[0];
-          firstLayer.when(() => {
-            if (firstLayer.fullExtent) arcgisView.goTo(firstLayer.fullExtent).catch(() => {});
-          }).catch(() => {});
-        }
       } else {
         
       }
@@ -1163,8 +1157,8 @@
         arcgisView = new MapView({
           container: 'arcgisMap',
           map: webmap,
-          center: [-62, -23],
-          zoom: 4,
+          center: [-58.5, -22.5],
+          zoom: 5.4,
           popup: { dockEnabled: true, dockOptions: { position: 'bottom-right', breakpoint: false } }
         });
 
