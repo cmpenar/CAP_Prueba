@@ -293,63 +293,11 @@
     .layer-status {
       color:var(--muted); font-size:.9rem; line-height:1.45; margin-top:10px;
     }
-    
-.map-select-row {
-  display:grid;
-  grid-template-columns: repeat(2, minmax(0,1fr));
-  gap:18px;
-  margin: 28px 0 26px;
-}
-
-.map-select-row label {
-  display:block;
-  margin-bottom:10px;
-  font-size:.95rem;
-  font-weight:700;
-  color:#0f172a;
-}
-
-.map-select-row select {
-  width:100%;
-  height:72px;
-  padding:0 22px;
-  border-radius:22px;
-  border:1.5px solid #d7dee8;
-  background:#ffffff;
-  color:#0f172a;
-  font-size:1.15rem;
-  font-weight:600;
-  box-shadow:
-    0 10px 24px rgba(15,23,42,.05),
-    inset 0 1px 0 rgba(255,255,255,.8);
-  transition: all .2s ease;
-}
-
-.map-select-row select:hover {
-  border-color:#94a3b8;
-}
-
-.map-select-row select:focus {
-  outline:none;
-  border-color:#0f172a;
-  box-shadow:
-    0 0 0 4px rgba(15,23,42,.08),
-    0 10px 24px rgba(15,23,42,.08);
-}
-
-@media (max-width: 720px) {
-  .arcgis-map { height:520px; }
-
-  .map-select-row {
-    grid-template-columns:1fr;
-  }
-
-  .map-select-row select {
-    height:64px;
-    font-size:1rem;
-  }
-}
-
+    .map-select-row { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:12px; margin-bottom:14px; }
+    @media (max-width: 720px) {
+      .arcgis-map { height:520px; }
+      .map-select-row { grid-template-columns:1fr; }
+    }
 
   </style>
 </head>
@@ -594,23 +542,19 @@
 
         <section class="card" id="mapas">
           <h3 class="section-title">Mapas del corredor</h3>
-          
-          
-<div class="map-select-row">
+          <div class="metric-tabs" id="metricTabs"></div>
+
+          <div class="map-select-row" style="margin-top:24px;">
             <div>
-              <label for="arcgisScenarioSelect">Escenario</label>
+              <label for="arcgisScenarioSelect">Escenario activo</label>
               <select id="arcgisScenarioSelect"></select>
             </div>
             <div>
-              <label for="arcgisMetricSelect">Indicador</label>
+              <label for="arcgisMetricSelect">Indicador disponible para este escenario</label>
               <select id="arcgisMetricSelect"></select>
             </div>
           </div>
-
-          
-          </div>
-
-          <div id="arcgisMap" class="arcgis-map" aria-label="Mapa interactivo de ArcGIS Online"></div>
+<div id="arcgisMap" class="arcgis-map" aria-label="Mapa interactivo de ArcGIS Online" style="margin-top:24px;"></div>
           <div class="layer-status" id="layerStatus">El selector de indicadores se llena con las capas detectadas dentro del escenario activo. Al cambiar de escenario, se ocultan las capas del escenario anterior y se carga un indicador por defecto.</div>
         </section>
       </main>
@@ -820,9 +764,7 @@
     const quickReading = document.getElementById('quickReading');
     const scenarioStory = document.getElementById('scenarioStory');
     const scaleGrid = document.getElementById('scaleGrid');
-    
     const metricTabs = document.getElementById('metricTabs');
-    
     const layerStatus = document.getElementById('layerStatus');
     const arcgisScenarioSelect = document.getElementById('arcgisScenarioSelect');
     const arcgisMetricSelect = document.getElementById('arcgisMetricSelect');
@@ -1100,11 +1042,8 @@
       arcgisScenarioSelect.value = currentComparison;
 
       if (!available.length) {
-        
-        return;
+        layerStatus.innerHTML = 'No se detectaron grupos de Escenario 1, Escenario 2 o Escenario 3 en el WebMap. Revisa que los grupos o capas incluyan esos nombres.';
       }
-
-      
     }
 
     function renderMetricTabs() {
@@ -1181,7 +1120,6 @@
 
       const scenarioLabel = getScenarioLabel(currentComparison);
       const metricLabel = getMetricLabel(currentMetric);
-      
 
       if (selectedLayers.length) {
         layerStatus.innerHTML = `Mostrando indicador <strong>${metricLabel}</strong> del grupo <strong>${scenarioLabel}</strong>. Capa activa: <strong>${selectedLayers.map(uniqueLayerTitle).join('</strong>, <strong>')}</strong>.`;
@@ -1212,7 +1150,7 @@
 
     function initArcGIS() {
       if (!window.require) {
-        mapCaption.textContent = 'No se pudo cargar la librería de ArcGIS JavaScript API.';
+        layerStatus.textContent = 'No se pudo cargar la librería de ArcGIS JavaScript API.';
         return;
       }
 
@@ -1256,7 +1194,7 @@
           renderMap();
         })).catch(error => {
           console.error(error);
-          mapCaption.textContent = 'No se pudo cargar el elemento de ArcGIS Online. Revisa que el item sea público o que tengas sesión con permisos.';
+          layerStatus.textContent = 'No se pudo cargar el elemento de ArcGIS Online. Revisa que el item sea público o que tengas sesión con permisos.';
           layerStatus.textContent = error && error.message ? error.message : 'Error de carga del mapa.';
         });
       });
