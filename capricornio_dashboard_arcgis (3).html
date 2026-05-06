@@ -1,0 +1,1276 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Capricornio Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="https://js.arcgis.com/4.31/esri/themes/light/main.css" />
+  <script src="https://js.arcgis.com/4.31/"></script>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --line: #e2e8f0;
+      --accent: #111827;
+      --accent-2: #475569;
+      --ok: #0f766e;
+      --bad: #b91c1c;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .wrap { max-width: 1280px; margin: 0 auto; padding: 24px; }
+    .hero {
+      background: linear-gradient(135deg, #0f172a, #334155);
+      color: white;
+      padding: 32px;
+      border-radius: 28px;
+      box-shadow: 0 16px 36px rgba(15, 23, 42, .18);
+      margin-bottom: 24px;
+    }
+    .hero h1 { margin: 8px 0 10px; font-size: clamp(2rem, 4vw, 3rem); }
+    .hero p { margin: 0; color: #dbeafe; max-width: 900px; }
+    .layout {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      padding: 18px;
+      box-shadow: 0 8px 22px rgba(15, 23, 42, .05);
+    }
+    .controls { position: sticky; top: 20px; }
+    .controls h2, .section-title { margin: 0 0 6px; font-size: 1.15rem; }
+    .sub { margin: 0 0 16px; color: var(--muted); font-size: .95rem; }
+    label { display: block; font-weight: 600; font-size: .92rem; margin-bottom: 8px; }
+    input, select {
+      width: 100%; padding: 12px 14px; border-radius: 14px; border: 1px solid #cbd5e1;
+      background: white; color: var(--text); font: inherit;
+    }
+    .field { margin-bottom: 16px; }
+    .hint { font-size: .84rem; color: var(--muted); margin-top: 8px; }
+    .metrics {
+      display: grid; gap: 16px; grid-template-columns: repeat(4, minmax(0,1fr)); margin-bottom: 24px;
+    }
+    .metric-card .k { font-size: .9rem; color: var(--muted); }
+    .metric-card .v { font-size: 1.9rem; font-weight: 800; margin-top: 8px; }
+    .grid-2 { display: grid; gap: 24px; grid-template-columns: repeat(2, minmax(0,1fr)); margin-bottom: 24px; }
+    .chart-box { height: 360px; }
+    .tabs, .metric-tabs {
+      display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px;
+    }
+    .tab, .metric-tab {
+      border: 1px solid #cbd5e1; background: #fff; padding: 10px 14px; border-radius: 999px;
+      cursor: pointer; font-weight: 600; color: var(--accent-2);
+    }
+    .tab.active, .metric-tab.active {
+      background: var(--accent); color: white; border-color: var(--accent);
+    }
+    .map-view {
+      overflow: hidden; border-radius: 18px; border: 1px solid var(--line); background: #edf2f7;
+    }
+    .map-view img { width: 100%; display: block; }
+    .legend-note { color: var(--muted); font-size: .9rem; margin-top: 10px; }
+    .mini-grid {
+      display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 12px; margin-top: 18px;
+    }
+    .mini-item {
+      background: #f8fafc; border: 1px solid var(--line); border-radius: 16px; padding: 12px;
+    }
+    .mini-item .n { font-size: .85rem; color: var(--muted); }
+    .mini-item .x { font-size: 1.15rem; font-weight: 700; margin-top: 6px; }
+    .status {
+      padding: 14px; border-radius: 16px; background: #f8fafc; border: 1px solid var(--line); margin-top: 8px;
+      font-size: .95rem; color: var(--accent-2);
+    }
+    .footer-note { color: var(--muted); font-size: .9rem; margin-top: 8px; }
+    @media (max-width: 1100px) {
+      .layout { grid-template-columns: 1fr; }
+      .controls { position: static; }
+      .metrics { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .grid-2 { grid-template-columns: 1fr; }
+      .mini-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    }
+    @media (max-width: 640px) {
+      .wrap { padding: 14px; }
+      .hero { padding: 22px; border-radius: 22px; }
+      .metrics { grid-template-columns: 1fr; }
+      .mini-grid { grid-template-columns: 1fr; }
+    }
+
+    .hero-top { display:flex; justify-content:space-between; gap:16px; align-items:flex-start; flex-wrap:wrap; }
+    .ghost-btn, .primary-btn {
+      border: 1px solid rgba(255,255,255,.25); background: rgba(255,255,255,.08); color: white;
+      padding: 11px 16px; border-radius: 999px; cursor: pointer; font-weight: 700; font: inherit;
+      backdrop-filter: blur(6px);
+    }
+    .primary-btn { background:#fff; color:#0f172a; border-color:#fff; }
+    .meta-strip {
+      display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:14px; margin: 20px 0 24px;
+    }
+    .meta-box {
+      background:#eef4fb; border:1px solid var(--line); border-radius:18px; padding:16px;
+    }
+    .meta-box .eyebrow { font-size:.75rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); }
+    .meta-box .big { margin-top:6px; font-size:1.1rem; font-weight:800; }
+    .model-intro { margin-bottom:24px; }
+    .model-grid { display:grid; gap:24px; grid-template-columns: 1.15fr .85fr; margin-bottom:24px; }
+    .info-steps { display:grid; gap:14px; }
+    .step {
+      display:grid; grid-template-columns: 56px 1fr; gap:14px; align-items:flex-start;
+      padding:14px; border:1px solid var(--line); border-radius:18px; background:#f8fafc;
+    }
+    .step-num {
+      width:56px; height:56px; border-radius:18px; background:#dbeafe; display:flex; align-items:center; justify-content:center;
+      font-weight:800; font-size:1.2rem; color:#0f172a;
+    }
+    .step h4 { margin:0 0 6px; font-size:1rem; }
+    .step p { margin:0; color:var(--accent-2); line-height:1.5; }
+    .flow-card { background:linear-gradient(180deg,#f8fbff,#eef4fb); }
+    .flow {
+      display:flex; flex-direction:column; gap:12px; margin-top:14px;
+    }
+    .flow-node {
+      border:1px solid var(--line); background:#fff; border-radius:18px; padding:14px 16px; position:relative;
+    }
+    .flow-node:not(:last-child)::after {
+      content:'↓'; position:absolute; left:50%; bottom:-22px; transform:translateX(-50%); color:#64748b; font-weight:700;
+    }
+    .pill-row { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+    .pill { background:#e2e8f0; color:#0f172a; border-radius:999px; padding:8px 12px; font-size:.85rem; font-weight:700; }
+    .method-summary { margin-top:16px; padding:14px; border-left:4px solid #0f172a; background:#f8fafc; border-radius:0 14px 14px 0; color:#334155; }
+    .authors { margin-top:28px; }
+    .authors-grid { display:grid; grid-template-columns: 1.1fr 1fr; gap:16px; }
+    .author-line { color:#334155; line-height:1.6; }
+    .credits { margin-top:10px; color:#64748b; font-size:.92rem; }
+    .modal-backdrop {
+      position:fixed; inset:0; background:rgba(15,23,42,.56); display:none; align-items:center; justify-content:center;
+      padding:24px; z-index:50;
+    }
+    .modal-backdrop.open { display:flex; }
+    .modal {
+      width:min(980px, 100%); max-height:88vh; overflow:auto; background:#fff; border-radius:28px; border:1px solid var(--line);
+      box-shadow:0 22px 70px rgba(15,23,42,.28); padding:24px;
+    }
+    .modal-head { display:flex; justify-content:space-between; gap:16px; align-items:flex-start; }
+    .close-btn {
+      border:none; background:#e2e8f0; color:#0f172a; width:40px; height:40px; border-radius:999px; cursor:pointer; font-size:1.2rem;
+    }
+    .note-list { display:grid; gap:12px; margin-top:14px; }
+    .note-item { border:1px solid var(--line); border-radius:16px; padding:14px; background:#fff; }
+    .footer-page { margin:28px 0 10px; color:#64748b; font-size:.92rem; text-align:center; }
+    @media (max-width: 1100px) {
+      .meta-strip, .model-grid, .authors-grid { grid-template-columns: 1fr; }
+    }
+
+    .section-title.xl { font-size: clamp(1.45rem, 2.4vw, 2.2rem); margin-bottom: 10px; }
+    .sub.wide { max-width: 900px; }
+    .eyebrow-dark { font-size: .78rem; text-transform: uppercase; letter-spacing: .14em; color: #475569; margin-bottom: 10px; font-weight: 700; }
+    .outline-btn {
+      border: 1px solid var(--line); background: white; color: #0f172a; padding: 12px 16px; border-radius: 999px;
+      cursor: pointer; font-weight: 700; font: inherit; white-space: nowrap;
+      box-shadow: 0 8px 20px rgba(15,23,42,.05);
+    }
+    .model-showcase {
+      background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      padding: 24px;
+      box-shadow: 0 14px 34px rgba(15,23,42,.06);
+      margin-bottom: 24px;
+    }
+    .model-header {
+      display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 22px;
+    }
+    .story-grid {
+      display: grid; grid-template-columns: 1.15fr .85fr; gap: 18px; margin-bottom: 18px;
+    }
+    .story-side { display: grid; gap: 18px; }
+    .story-card {
+      border-radius: 24px; padding: 20px; border: 1px solid var(--line); background: #fff;
+      box-shadow: 0 10px 24px rgba(15,23,42,.04);
+    }
+    .story-card.dark {
+      background: linear-gradient(180deg, #eef4fb 0%, #f8fbff 100%);
+      color: var(--text);
+      border-color: var(--line);
+      padding: 24px;
+    }
+    .story-card.soft { background: #f8fafc; }
+    .story-card.accent { background: linear-gradient(180deg, #eef4fb, #f8fbff); }
+    .story-kicker {
+      display: inline-flex; align-items: center; gap: 8px; font-size: .74rem; text-transform: uppercase;
+      letter-spacing: .14em; color: #64748b; font-weight: 800; margin-bottom: 10px;
+    }
+    .story-card.dark .story-kicker { color: #64748b; }
+    .story-card h4 { margin: 0 0 12px; font-size: 1.2rem; }
+    .model-svg { width: 100%; height: auto; display: block; }
+    .svg-title { font-size: 14px; font-weight: 800; fill: #0f172a; }
+    .svg-copy { font-size: 13px; fill: #334155; }
+    .svg-title.light { fill: #0f172a; }
+    .svg-copy.light { fill: #475569; }
+    .icon-list { display: grid; gap: 12px; }
+    .icon-row {
+      display: grid; grid-template-columns: 44px 1fr; gap: 12px; align-items: start;
+      padding: 12px; border-radius: 16px; background: white; border: 1px solid var(--line);
+    }
+    .icon-row strong, .explain-card h4 { display: block; margin-bottom: 4px; }
+    .icon-row span { color: #475569; line-height: 1.45; font-size: .95rem; }
+    .icon-badge {
+      width: 44px; height: 44px; border-radius: 14px; background: #dbeafe; color: #0f172a;
+      display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1.1rem;
+    }
+    .pill-matrix { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+    .pill-matrix span {
+      display: inline-flex; padding: 9px 12px; border-radius: 999px; background: white; border: 1px solid var(--line);
+      font-size: .88rem; font-weight: 700; color: #0f172a;
+    }
+    .microcopy { color: #475569; margin: 14px 0 0; line-height: 1.5; }
+    .explain-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 14px; }
+    .explain-card {
+      background: white; border: 1px solid var(--line); border-radius: 20px; padding: 18px;
+      box-shadow: 0 8px 18px rgba(15,23,42,.03);
+    }
+    .explain-num {
+      display: inline-flex; min-width: 46px; height: 32px; padding: 0 10px; border-radius: 999px;
+      align-items: center; justify-content: center; background: #e0f2fe; color: #0f172a; font-weight: 800; margin-bottom: 10px;
+    }
+    .explain-card p { margin: 0; color: #475569; line-height: 1.55; }
+    @media (max-width: 1100px) {
+      .story-grid, .explain-grid { grid-template-columns: 1fr; }
+      .model-header { align-items: stretch; }
+    }
+
+
+    .scenario-hero {
+      display:grid; grid-template-columns: 1.05fr .95fr; gap:16px; margin:16px 0 18px;
+    }
+    .scenario-panel {
+      border:1px solid var(--line); border-radius:20px; padding:18px; background:linear-gradient(180deg,#ffffff,#f8fafc);
+    }
+    .scenario-tag {
+      display:inline-flex; align-items:center; padding:8px 12px; border-radius:999px; background:#0f172a; color:#fff;
+      font-size:.82rem; font-weight:800; margin-bottom:10px;
+    }
+    .scenario-panel h4 { margin:0 0 8px; font-size:1.1rem; }
+    .scenario-panel p { margin:0; color:#475569; line-height:1.55; }
+    .scenario-message {
+      border-left:4px solid #0f172a; background:#eef4fb; border-radius:0 16px 16px 0; padding:14px 16px; color:#334155; line-height:1.55;
+    }
+    .scale-grid {
+      display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin:14px 0 18px;
+    }
+    .scale-card {
+      border:1px solid var(--line); border-radius:18px; background:#fff; padding:14px;
+    }
+    .scale-card .scale-title { color:#64748b; font-size:.82rem; font-weight:800; text-transform:uppercase; letter-spacing:.08em; display:flex; align-items:center; gap:8px; }
+    .kpi-emoji { display:inline-flex; width:22px; height:22px; align-items:center; justify-content:center; filter: grayscale(1) saturate(0); opacity:.72; font-size:1rem; line-height:1; }
+    .scale-card .scale-main { margin-top:8px; font-size:1.35rem; font-weight:900; }
+    .scale-card .scale-copy { margin-top:6px; color:#475569; font-size:.9rem; line-height:1.4; }
+    .scenario-note { color:#64748b; font-size:.9rem; line-height:1.5; margin:10px 0 0; }
+    @media (max-width: 1100px) {
+      .scenario-hero, .scale-grid { grid-template-columns:1fr; }
+    }
+
+    .arcgis-toolbar {
+      display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between; margin: 10px 0 14px;
+    }
+    .arcgis-actions { display:flex; gap:8px; flex-wrap:wrap; }
+    .arcgis-map {
+      width:100%; height:640px; min-height:520px; border-radius:18px; overflow:hidden; border:1px solid var(--line); background:#eef2f7;
+    }
+    .layer-status {
+      color:var(--muted); font-size:.9rem; line-height:1.45; margin-top:10px;
+    }
+    .map-select-row { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:12px; margin-bottom:14px; }
+    @media (max-width: 720px) {
+      .arcgis-map { height:520px; }
+      .map-select-row { grid-template-columns:1fr; }
+    }
+
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <div class="hero-top">
+        <div>
+          <div style="text-transform: uppercase; letter-spacing: .18em; font-size: .78rem; opacity: .82;">Capricornio App</div>
+          <h1>Dashboard + calculadora del Corredor Capricornio</h1>
+          <p>Micrositio de resultados del modelo espacial para evaluar conectividad, mercado, migración y crecimiento territorial.</p>
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button class="ghost-btn" id="openMethodology">Metodología del modelo</button>
+          <a class="primary-btn" href="#mapas" style="text-decoration:none; display:inline-flex; align-items:center;">Ver mapas</a>
+        </div>
+      </div>
+    </section>
+
+    
+    <section class="meta-strip">
+      <div class="meta-box">
+        <div class="eyebrow">Qué hace el modelo</div>
+        <div class="big">Construye contrafactuales espaciales</div>
+        <div class="credits">Compara un equilibrio base con escenarios donde cambia la infraestructura, y rastrea cómo eso mueve comercio, población, salarios, productividad y bienestar.</div>
+      </div>
+      <div class="meta-box">
+        <div class="eyebrow">Unidad de análisis</div>
+        <div class="big">1,697 economías territoriales</div>
+        <div class="credits">La lógica del reporte trabaja con celdas o territorios conectados por una red de transporte y calcula accesibilidad relativa entre lugares.</div>
+      </div>
+      <div class="meta-box">
+        <div class="eyebrow">Pregunta central</div>
+        <div class="big">¿Qué cambia cuando mejora el corredor?</div>
+        <div class="credits">Se estima el valor de completar tramos faltantes y también el valor económico del corredor ya consolidado.</div>
+      </div>
+    </section>
+
+    <section class="model-intro">
+      <div class="model-showcase">
+        <div class="model-header">
+          <div>
+            <div class="eyebrow-dark">EL MODELO, EN CLARO</div>
+            <h3 class="section-title xl">Cómo el corredor cambia la economía territorial</h3>
+            <p class="sub wide">Este componente traduce los resultados del modelo a una representación visual analítica. Su objetivo no se limita a la exposición de resultados, sino que explicita los mecanismos subyacentes: cómo una mejora en la infraestructura vial modifica los costos de transporte, altera la accesibilidad a los mercados, incide en las decisiones de localización y producción de hogares y firmas, y, en consecuencia, reconfigura el equilibrio espacial del sistema económico.</p>
+          </div>
+          <button class="outline-btn" id="openMethodologySecondary">Abrir metodología completa</button>
+        </div>
+
+        <div class="story-grid">
+          <div class="story-card dark">
+            <div class="story-kicker">Infografía central</div>
+            <h4>Del camino al nuevo equilibrio</h4>
+            <svg viewBox="0 0 980 760" class="model-svg" aria-label="Cadena causal del modelo en ruta vertical limpia">
+              <defs>
+                <linearGradient id="g1" x1="0" x2="1">
+                  <stop offset="0%" stop-color="#dbeafe"></stop>
+                  <stop offset="100%" stop-color="#cbd5e1"></stop>
+                </linearGradient>
+                <linearGradient id="g2" x1="0" x2="1">
+                  <stop offset="0%" stop-color="#dcfce7"></stop>
+                  <stop offset="100%" stop-color="#bbf7d0"></stop>
+                </linearGradient>
+                <linearGradient id="g3" x1="0" x2="1">
+                  <stop offset="0%" stop-color="#fef3c7"></stop>
+                  <stop offset="100%" stop-color="#fde68a"></stop>
+                </linearGradient>
+                <linearGradient id="g4" x1="0" x2="1">
+                  <stop offset="0%" stop-color="#ede9fe"></stop>
+                  <stop offset="100%" stop-color="#ddd6fe"></stop>
+                </linearGradient>
+              </defs>
+
+              <path d="M96 84 L96 610" fill="none" stroke="#d7dee8" stroke-width="6" stroke-linecap="round"></path>
+
+              <circle cx="96" cy="146" r="38" fill="#f8fafc" stroke="#c8d2de" stroke-width="5"></circle>
+              <text x="96" y="156" text-anchor="middle" style="font-size:22px;font-weight:900;fill:#0f172a;">1</text>
+              <rect x="160" y="92" rx="26" ry="26" width="620" height="110" fill="url(#g1)"></rect>
+              <foreignObject x="190" y="114" width="570" height="66">
+                <div xmlns="http://www.w3.org/1999/xhtml" style="height:66px;display:flex;flex-direction:column;justify-content:center;font-family:Inter,system-ui,sans-serif;color:#0f172a;">
+                  <div style="font-weight:800;font-size:20px;line-height:1.2;margin-bottom:8px;">Mejora del corredor</div>
+                  <div style="font-size:14px;line-height:1.45;color:#334155;">Más proporción de carreteras principales, puentes y conexiones estratégicas.</div>
+                </div>
+              </foreignObject>
+
+              <circle cx="96" cy="298" r="38" fill="#f8fafc" stroke="#c8d2de" stroke-width="5"></circle>
+              <text x="96" y="308" text-anchor="middle" style="font-size:22px;font-weight:900;fill:#0f172a;">2</text>
+              <rect x="160" y="242" rx="26" ry="26" width="560" height="110" fill="url(#g2)"></rect>
+              <foreignObject x="190" y="264" width="510" height="66">
+                <div xmlns="http://www.w3.org/1999/xhtml" style="height:66px;display:flex;flex-direction:column;justify-content:center;font-family:Inter,system-ui,sans-serif;color:#0f172a;">
+                  <div style="font-weight:800;font-size:20px;line-height:1.2;margin-bottom:8px;">Caen costos de transporte</div>
+                  <div style="font-size:14px;line-height:1.45;color:#334155;">Rutas más baratas hacia puertos, mercados y cruces internacionales.</div>
+                </div>
+              </foreignObject>
+
+              <circle cx="96" cy="450" r="38" fill="#f8fafc" stroke="#c8d2de" stroke-width="5"></circle>
+              <text x="96" y="460" text-anchor="middle" style="font-size:22px;font-weight:900;fill:#0f172a;">3</text>
+              <rect x="160" y="394" rx="26" ry="26" width="470" height="110" fill="url(#g3)"></rect>
+              <foreignObject x="190" y="416" width="420" height="66">
+                <div xmlns="http://www.w3.org/1999/xhtml" style="height:66px;display:flex;flex-direction:column;justify-content:center;font-family:Inter,system-ui,sans-serif;color:#0f172a;">
+                  <div style="font-weight:800;font-size:20px;line-height:1.2;margin-bottom:8px;">Responden agentes</div>
+                  <div style="font-size:14px;line-height:1.45;color:#334155;">Cambian ventas, precios, salarios, migración e innovación.</div>
+                </div>
+              </foreignObject>
+
+              <circle cx="96" cy="602" r="38" fill="#f8fafc" stroke="#c8d2de" stroke-width="5"></circle>
+              <text x="96" y="612" text-anchor="middle" style="font-size:22px;font-weight:900;fill:#0f172a;">4</text>
+              <rect x="160" y="546" rx="26" ry="26" width="300" height="110" fill="url(#g4)"></rect>
+              <foreignObject x="190" y="568" width="250" height="66">
+                <div xmlns="http://www.w3.org/1999/xhtml" style="height:66px;display:flex;flex-direction:column;justify-content:center;font-family:Inter,system-ui,sans-serif;color:#0f172a;">
+                  <div style="font-weight:800;font-size:20px;line-height:1.2;margin-bottom:8px;">Nuevo equilibrio</div>
+                  <div style="font-size:14px;line-height:1.45;color:#334155;">PIB pc, bienestar, utilidad y comercio.</div>
+                </div>
+              </foreignObject>
+
+              <rect x="14" y="688" rx="24" ry="24" width="930" height="58" fill="#e9eef6" stroke="#d6dee8"></rect>
+              <text x="479" y="724" text-anchor="middle" class="svg-title light">Mercados conectados: Bienes • Trabajo • Tierra • Innovación • Migración</text>
+            </svg>
+          </div>
+
+          <div class="story-side">
+            <div class="story-card soft">
+              <div class="story-kicker">Qué entra al modelo</div>
+              <h4>Capas de información</h4>
+              <div class="icon-list">
+                <div class="icon-row">
+                  <div class="icon-badge">▦</div>
+                  <div><strong>Grilla territorial</strong><span>Población inicial, actividad, salarios y productividad por lugar.</span></div>
+                </div>
+                <div class="icon-row">
+                  <div class="icon-badge">⇄</div>
+                  <div><strong>Red de transporte</strong><span>Carreteras, ferrocarril, ríos y rutas de menor costo entre pares de lugares.</span></div>
+                </div>
+                <div class="icon-row">
+                  <div class="icon-badge">⛭</div>
+                  <div><strong>Parámetros económicos</strong><span>Preferencias, comercio, movilidad y respuesta de firmas y hogares.</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="story-card accent">
+              <div class="story-kicker">Qué sale del modelo</div>
+              <h4>Indicadores del dashboard</h4>
+              <div class="pill-matrix">
+                <span>GDP per capita</span>
+                <span>Población</span>
+                <span>Productividad</span>
+                <span>Salarios</span>
+                <span>Utilidad</span>
+                <span>Apertura comercial</span>
+                <span>Volumen de comercio</span>
+              </div>
+              <p class="microcopy">Los mapas que ves abajo son la traducción espacial de ese nuevo equilibrio.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="explain-grid">
+          <div class="explain-card">
+            <div class="explain-num">01</div>
+            <h4>Base espacial</h4>
+            <p>El reporte modela Sudamérica como una red de economías territoriales. Cada lugar compite y coopera con otros según su acceso relativo a la red.</p>
+          </div>
+          <div class="explain-card">
+            <div class="explain-num">02</div>
+            <h4>Contrafactual</h4>
+            <p>Se alteran celdas del corredor para representar mejoras viales o puentes. Eso cambia la fricción de transporte frente al escenario base.</p>
+          </div>
+          <div class="explain-card">
+            <div class="explain-num">03</div>
+            <h4>Ajuste económico</h4>
+            <p>Los menores costos modifican precios, especialización, acceso a demanda, relocalización de actividad y decisiones de migración.</p>
+          </div>
+          <div class="explain-card">
+            <div class="explain-num">04</div>
+            <h4>Lectura territorial</h4>
+            <p>Los efectos no son uniformes: ganan más los lugares con mejor acceso a nodos y corredores, y las fronteras pueden erosionar parte de esos beneficios.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+<section class="layout">
+      <aside class="card controls">
+        <h2>Parámetros</h2>
+        <p class="sub">Cambia escenario y supuestos para actualizar los resultados.</p>
+
+        <div class="field">
+          <label for="scenario">Escenario</label>
+          <select id="scenario"></select>
+        </div>
+
+        <div class="field">
+          <label for="investment">Inversión total (US$ millones)</label>
+          <input id="investment" type="number" />
+        </div>
+
+        <div class="field">
+          <label for="maintenance">Mantenimiento anual (US$ millones)</label>
+          <input id="maintenance" type="number" />
+        </div>
+
+        <div class="field">
+          <label for="borderPenalty">Penalización por fronteras: <span id="borderPenaltyLabel">0%</span></label>
+          <input id="borderPenalty" type="range" min="0" max="100" step="1" value="0" />
+          <div class="hint">Simula cuánto se erosionan los beneficios por demoras, costos o fricción fronteriza.</div>
+        </div>
+
+        <div class="status" id="selectedScenarioSummary"></div>
+        <div class="footer-note"></div>
+      </aside>
+
+      <main>
+        <section class="metrics" id="metrics"></section>
+
+        <section class="grid-2">
+          <div class="card">
+            <h3 class="section-title">Gráfico del escenario</h3>
+            <p class="sub">Impacto medio vs. máximo observado en cada variable.</p>
+            <div class="chart-box"><canvas id="radarChart"></canvas></div>
+          </div>
+
+          <div class="card">
+            <h3 class="section-title">Resultados por territorio</h3>
+            <p class="sub">Bienestar ajustado por territorio, con el castigo de frontera aplicado.</p>
+            <div class="chart-box"><canvas id="barChart"></canvas></div>
+          </div>
+        </section>
+
+        <section class="card" style="margin-bottom:24px;">
+          <h3 class="section-title">Lectura rápida</h3>
+          <p class="sub">
+            Los beneficios del corredor crecen de forma no lineal: intervenciones pequeñas generan efectos locales, mientras que inversiones integrales producen impactos sistémicos en la región.
+          </p>
+          <div class="scenario-hero" id="scenarioStory"></div>
+          <div class="scale-grid" id="scaleGrid"></div>
+          <div class="mini-grid" id="miniMetrics"></div>
+          <div class="status" id="quickReading"></div>
+          <p class="scenario-note">
+            Nota: SAC significa <em>South American Countries</em> —países de América del Sur—. En este dashboard, los impactos agregados SAC muestran promedios regionales sobre 1,697 economías territoriales; por eso pueden ser menores que los efectos observados dentro del corredor o en las zonas más beneficiadas.
+          </p>
+        </section>
+
+        <section class="card" id="mapas">
+          <h3 class="section-title">Mapas del corredor</h3>
+          <p class="sub">Visor interactivo conectado al elemento de ArcGIS Online <strong>86d66a694af742b4b7a7759b7c09c5e0</strong>. Primero elige el escenario en el panel izquierdo; luego aquí verás únicamente las variables disponibles para ese escenario.</p>
+
+          <div class="status" id="comparisonTabs">Cargando escenarios del mapa…</div>
+          <div class="metric-tabs" id="metricTabs"></div>
+
+          <div class="map-select-row">
+            <div>
+              <label for="arcgisScenarioSelect">Escenario activo</label>
+              <select id="arcgisScenarioSelect"></select>
+            </div>
+            <div>
+              <label for="arcgisMetricSelect">Indicador disponible para este escenario</label>
+              <select id="arcgisMetricSelect"></select>
+            </div>
+          </div>
+
+          <div class="arcgis-toolbar">
+            <div class="legend-note" id="mapCaption">Cargando mapa de ArcGIS Online…</div>
+          </div>
+
+          <div id="arcgisMap" class="arcgis-map" aria-label="Mapa interactivo de ArcGIS Online"></div>
+          <div class="layer-status" id="layerStatus">El selector de indicadores se llena con las capas detectadas dentro del escenario activo. Al cambiar de escenario, se ocultan las capas del escenario anterior y se carga un indicador por defecto.</div>
+        </section>
+      </main>
+    </section>
+
+    <section class="card authors">
+      <h3 class="section-title">Autores y equipo del reporte</h3>
+      <p class="sub">Créditos del documento base usado para esta visualización.</p>
+      <div class="authors-grid">
+        <div>
+          <div class="author-line"><strong>Research Team for this report:</strong> Mauro Alem (IADB Infrastructure Principal Specialist, Team Leader).</div>
+          <div class="author-line"><strong>Consultants:</strong> David Nagy (CREi), Julio Elías (UCEMA), Marlene Achury, Ignacio Penagos (Javeriana), Mariam Pena (UNAL).</div>
+          <div class="author-line"><strong>TC:</strong> RG-T4763 — <em>Analysis of the Economic Impact of Capricorn Integration Route</em>.</div>
+          <div class="author-line"><strong>TC Team Leader:</strong> Gabriel Sánchez (IADB Economics Principal Specialist, CSC/CSC).</div>
+        </div>
+        <div>
+          <div class="author-line"><strong>Sector:</strong> Regional Integration – Infrastructure.</div>
+          <div class="author-line"><strong>IADB Team:</strong> Arturo Galindo, Eduardo Cavallo, Julieta Abad, Leonel Borja, Esteban Diez, Eugenia Rivas, Alejandro Taddia y Diego Fasan.</div>
+          <div class="credits">Inter-American Development Bank, 2026.</div>
+        </div>
+      </div>
+    </section>
+
+    <div class="footer-page">Plataforma de visualización web basada en los análisis del Corredor de Capricornio, con integración de datos de escenarios actualizados para su exploración y análisis.</div>
+  </div>
+
+  <div class="modal-backdrop" id="methodologyModal" aria-hidden="true">
+    <div class="modal">
+      <div class="modal-head">
+        <div>
+          <h3 class="section-title" style="font-size:1.35rem;">Metodología del modelo</h3>
+          <p class="sub" style="margin-bottom:0;">Resumen del enfoque económico-geográfico utilizado en el reporte.</p>
+        </div>
+        <button class="close-btn" id="closeMethodology" aria-label="Cerrar">×</button>
+      </div>
+      <div class="note-list">
+        <div class="note-item"><strong>1. Marco teórico.</strong> El estudio se apoya en modelos espaciales de equilibrio general inspirados en Allen y Arkolakis (2014) y extendidos con dinámica de crecimiento, innovación y migración por Desmet, Nagy y Rossi-Hansberg (2018).</div>
+        <div class="note-item"><strong>2. Resolución espacial.</strong> La economía se representa en celdas geográficas comparables. El reporte menciona una malla de 100 km × 100 km en la literatura de referencia y estima trayectorias para 1,697 economías territoriales en Sudamérica.</div>
+        <div class="note-item"><strong>3. Datos de transporte.</strong> Para cada lugar se mide disponibilidad de carreteras, ferrocarriles y vías fluviales, y se construyen rutas de menor costo entre pares de ubicaciones.</div>
+        <div class="note-item"><strong>4. Contrafactuals.</strong> El escenario principal de completamiento aumenta la proporción de carreteras principales en celdas específicas del corredor e incorpora puentes fronterizos y mejoras viales; el escenario alternativo elimina tramos del corredor para medir el valor del activo consolidado.</div>
+        <div class="note-item"><strong>5. Qué sale del modelo.</strong> El nuevo equilibrio produce estimaciones de comercio, población, PIB per cápita, productividad, salarios y bienestar monetizado, mostrando efectos promedio y distribución espacial de ganadores y rezagados.</div>
+        <div class="note-item"><strong>6. Lectura de los mapas.</strong> Los mapas muestran dónde se concentran los impactos. En el reporte, los beneficios de completar los faltantes se concentran cerca de Salta y Boquerón, mientras que el valor del corredor consolidado aparece mucho más fuerte en el norte argentino, Chile y Brasil.</div>
+        <div class="note-item"><strong>7. Fronteras importan.</strong> El reporte muestra que, al incorporar costos de cruce fronterizo, los beneficios se erosionan con fuerza, especialmente en ubicaciones cercanas a la frontera; por eso este dashboard incluye un control de penalización fronteriza.</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const scenarios = {
+      partial: {
+        label: '3. Intervención mínima',
+        tag: 'Bajo impacto',
+        headline: 'Prueba conservadora con retornos reducidos',
+        title: 'Escenario 3: upgrade parcial de vías secundarias',
+        description: 'Escenario conservador: mejora 310 km de vías secundarias a primarias y construye 80 km nuevos en tramos sin infraestructura. Impactos muy localizados.',
+        annualWelfare: 19.5,
+        investment: 244,
+        maintenance: 4.5,
+        roi: 2.58,
+        trade: 0.01,
+        population: 0.01,
+        gdp: 0.01,
+        productivity: 0.00,
+        utility: 0.00,
+        wages: 0.00,
+        corridorTrade: 0.24,
+        corridorPopulation: 0.20,
+        corridorGdp: 0.16,
+        maxTrade: 1.83,
+        maxPopulation: 1.52,
+        maxGdp: 1.25,
+        maxProductivity: 0.06,
+        maxWages: 0.04,
+        areas: [
+          { name: 'Argentina', value: 214.82 },
+          { name: 'Paraguay', value: 130.12 },
+          { name: 'Chile', value: 98.85 },
+          { name: 'Brasil', value: 3.30 },
+          { name: 'Perú', value: 1.37 },
+          { name: 'Bolivia', value: -62.55 },
+        ],
+      },
+      completion: {
+        label: '1. Cerrar brechas del corredor',
+        tag: 'Impacto local',
+        headline: 'Conecta tramos faltantes y concentra beneficios cerca del corredor',
+        title: 'Escenario 1: completar tramos faltantes del CC',
+        description: 'Construcción de nueva vía primaria en 390 km para conectar localizaciones previamente aisladas en Argentina y Paraguay. Beneficios moderados y concentrados.',
+        annualWelfare: 59.9,
+        investment: 585,
+        maintenance: 11.0,
+        roi: 6.55,
+        trade: 0.03,
+        population: 0.02,
+        gdp: 0.02,
+        productivity: 0.01,
+        utility: 0.01,
+        wages: 0.00,
+        corridorTrade: 0.56,
+        corridorPopulation: 0.46,
+        corridorGdp: 0.38,
+        maxTrade: 8.19,
+        maxPopulation: 6.69,
+        maxGdp: 5.46,
+        maxProductivity: 0.14,
+        maxWages: 0.10,
+        areas: [
+          { name: 'Argentina', value: 535.34 },
+          { name: 'Chile', value: 414.68 },
+          { name: 'Paraguay', value: 363.00 },
+          { name: 'Brasil', value: 5.33 },
+          { name: 'Perú', value: 1.30 },
+          { name: 'Bolivia', value: -114.79 },
+        ],
+      },
+      bioceanic: {
+        label: '2. Integración regional total',
+        tag: 'Impacto sistémico',
+        headline: 'Transforma el corredor en una red continua de alta capacidad',
+        title: 'Escenario 2: construcción del corredor bioceánico',
+        description: 'Intervención de gran escala: corredor continuo de alta capacidad desde puertos chilenos del Pacífico hasta Santos, Brasil. Genera los impactos sistémicos más altos.',
+        annualWelfare: 9101,
+        investment: 22750,
+        maintenance: 4000,
+        roi: 31.04,
+        trade: 0.39,
+        population: 0.31,
+        gdp: 0.28,
+        productivity: 0.09,
+        utility: 0.18,
+        wages: 0.08,
+        corridorTrade: 9.17,
+        corridorPopulation: 7.50,
+        corridorGdp: 6.12,
+        maxTrade: 16.96,
+        maxPopulation: 13.82,
+        maxGdp: 11.22,
+        maxProductivity: 2.20,
+        maxWages: 1.55,
+        areas: [
+          { name: 'Brasil', value: 146153.72 },
+          { name: 'Chile', value: 18572.14 },
+          { name: 'Argentina', value: 12630.52 },
+          { name: 'Paraguay', value: 2214.13 },
+          { name: 'Perú', value: 851.38 },
+          { name: 'Bolivia', value: 498.45 },
+        ],
+      }
+    };
+
+    const ARCGIS_ITEM_ID = '86d66a694af742b4b7a7759b7c09c5e0';
+
+    const metricDefinitions = {
+      apertura: ['apertura comercial', 'trade openness', 'openness', 'apertura'],
+      gdp: ['gdp per capita', 'pib per capita', 'pib pc', 'gdp', 'pib'],
+      poblacion: ['población', 'poblacion', 'population'],
+      productividad: ['productividad', 'productivity'],
+      salarios: ['salarios', 'wages', 'salario'],
+      utilidad: ['utilidad', 'utility', 'bienestar', 'welfare'],
+      comercio: ['variación volumen de comercio', 'variacion volumen de comercio', 'volumen de comercio', 'trade volume', 'comercio']
+    };
+
+    const metricLabels = {
+      apertura: 'Apertura comercial',
+      gdp: 'GDP per Capita',
+      poblacion: 'Población',
+      productividad: 'Productividad',
+      salarios: 'Salarios',
+      utilidad: 'Utilidad',
+      comercio: 'Variación volumen de comercio'
+    };
+
+    const scenarioDefinitions = {
+      // Escenarios del reporte. Estos alias permiten que el filtro funcione aunque
+      // las capas se llamen "Escenario 1 - GDP", "S1_GDP", "completion_gdp", etc.
+      'completion': ['escenario 1', 'scenario 1', 'esc 1', 'e1', 's1', 'cerrar brechas', 'completar tramos', 'completion', 'faltantes'],
+      'bioceanic': ['escenario 2', 'scenario 2', 'esc 2', 'e2', 's2', 'bioceánico', 'bioceanico', 'integración regional', 'integracion regional', 'corredor bioceanico'],
+      'partial': ['escenario 3', 'scenario 3', 'esc 3', 'e3', 's3', 'intervención mínima', 'intervencion minima', 'partial', 'minima'],
+
+      // Comparaciones antiguas: quedan como respaldo si el item de ArcGIS todavía usa esos nombres.
+      'zeros-base': ['zeros → base', 'zeros a base', 'zeros-base', 'zero to base', 'zeros_base'],
+      'base-capricornio': ['base → capricornio', 'base a capricornio', 'base-capricornio', 'base_capricornio'],
+      'zeros-capricornio': ['zeros → capricornio', 'zeros a capricornio', 'zeros-capricornio', 'zeros_capricornio']
+    };
+
+    const scenarioLabels = {
+      'zeros-base': 'Zeros → Base',
+      'base-capricornio': 'Base → Capricornio',
+      'zeros-capricornio': 'Zeros → Capricornio',
+      completion: '1. Cerrar brechas del corredor',
+      bioceanic: '2. Integración regional total',
+      partial: '3. Intervención mínima'
+    };
+
+    let arcgisView = null;
+    let arcgisOperationalLayers = [];
+    let arcgisControlModel = {};
+
+    const scenarioEl = document.getElementById('scenario');
+    const investmentEl = document.getElementById('investment');
+    const maintenanceEl = document.getElementById('maintenance');
+    const borderPenaltyEl = document.getElementById('borderPenalty');
+    const borderPenaltyLabel = document.getElementById('borderPenaltyLabel');
+    const metricsEl = document.getElementById('metrics');
+    const miniMetricsEl = document.getElementById('miniMetrics');
+    const selectedScenarioSummary = document.getElementById('selectedScenarioSummary');
+    const quickReading = document.getElementById('quickReading');
+    const scenarioStory = document.getElementById('scenarioStory');
+    const scaleGrid = document.getElementById('scaleGrid');
+    const comparisonTabs = document.getElementById('comparisonTabs');
+    const metricTabs = document.getElementById('metricTabs');
+    const mapCaption = document.getElementById('mapCaption');
+    const layerStatus = document.getElementById('layerStatus');
+    const arcgisScenarioSelect = document.getElementById('arcgisScenarioSelect');
+    const arcgisMetricSelect = document.getElementById('arcgisMetricSelect');
+    const openMethodology = document.getElementById('openMethodology');
+    const openMethodologySecondary = document.getElementById('openMethodologySecondary');
+    const closeMethodology = document.getElementById('closeMethodology');
+    const methodologyModal = document.getElementById('methodologyModal');
+
+    let currentScenario = 'completion';
+    let currentComparison = 'base-capricornio';
+    let currentMetric = 'gdp';
+
+    // Orden explícito para que el desplegable muestre Escenario 1, 2 y 3.
+    const scenarioOrder = ['completion', 'bioceanic', 'partial'];
+
+    scenarioOrder.forEach((key) => {
+      const item = scenarios[key];
+      const opt = document.createElement('option');
+      opt.value = key;
+      opt.textContent = item.label;
+      scenarioEl.appendChild(opt);
+    });
+
+    scenarioEl.value = currentScenario;
+    investmentEl.value = scenarios[currentScenario].investment;
+    maintenanceEl.value = scenarios[currentScenario].maintenance;
+
+    function fmtNumber(v, digits = 1) {
+      return Number(v).toLocaleString('es-ES', { maximumFractionDigits: digits });
+    }
+
+    function computeState() {
+      const s = scenarios[currentScenario];
+      const investment = Number(investmentEl.value) || 0;
+      const maintenance = Number(maintenanceEl.value) || 0;
+      const borderPenalty = Number(borderPenaltyEl.value) || 0;
+      const factor = Math.max(0, Math.min(100, borderPenalty)) / 100;
+      const annualWelfare = s.annualWelfare * (1 - factor);
+      const simpleAnnualReturn = investment > 0 ? (annualWelfare / investment) * 100 : 0;
+      const netAnnualBenefit = annualWelfare - maintenance;
+      const paybackYears = netAnnualBenefit > 0 ? investment / netAnnualBenefit : null;
+      const adjustedAreas = s.areas.map(a => ({ ...a, adjusted: a.value * (1 - factor) }));
+      return { s, investment, maintenance, borderPenalty, annualWelfare, simpleAnnualReturn, netAnnualBenefit, paybackYears, adjustedAreas };
+    }
+
+    function getScenarioInsight(state) {
+      const s = state.s;
+      if (s.roi >= 25) {
+        return 'Escenario de alto impacto regional: la escala de inversión reduce costos de transporte de forma suficiente para generar spillovers amplios, con ganancias importantes dentro y fuera del corredor.';
+      }
+      if (s.roi >= 5) {
+        return 'Escenario de impacto moderado: mejora la conectividad de zonas aisladas y genera beneficios positivos, pero principalmente concentrados en territorios directamente conectados al corredor.';
+      }
+      return 'Escenario de bajo impacto: sirve como alternativa conservadora, con costos menores, pero también con efectos económicos limitados y altamente localizados.';
+    }
+
+    function renderScenarioStory(state) {
+      const s = state.s;
+      scenarioStory.innerHTML = `
+        <div class="scenario-panel">
+          <div class="scenario-tag">${s.tag}</div>
+          <h4>${s.headline}</h4>
+          <p>${s.description}</p>
+        </div>
+        <div class="scenario-message">
+          <strong>Lectura ejecutiva:</strong><br>
+          ${getScenarioInsight(state)}
+        </div>
+      `;
+
+      const maxImpact = Math.max(s.maxTrade, s.maxPopulation, s.maxGdp);
+      scaleGrid.innerHTML = `
+        <div class="scale-card">
+          <div class="scale-title"><span class="kpi-emoji">🌎</span><span>Promedio regional SAC</span></div>
+          <div class="scale-main">${fmtNumber(s.trade, 2)}%</div>
+          <div class="scale-copy">Variación promedio del comercio en las 1,697 economías territoriales.</div>
+        </div>
+        <div class="scale-card">
+          <div class="scale-title"><span class="kpi-emoji">📍</span><span>Dentro del corredor</span></div>
+          <div class="scale-main">${fmtNumber(s.corridorTrade, 2)}%</div>
+          <div class="scale-copy">Impacto comercial promedio en las ubicaciones conectadas por el corredor.</div>
+        </div>
+        <div class="scale-card">
+          <div class="scale-title"><span class="kpi-emoji">🔥</span><span>Máximo observado</span></div>
+          <div class="scale-main">${fmtNumber(maxImpact, 2)}%</div>
+          <div class="scale-copy">Mayor impacto local entre comercio, población y PIB per cápita.</div>
+        </div>
+      `;
+    }
+
+    function renderMetricCards(state) {
+      const cards = [
+        { label: 'Ganancia anual ajustada', value: `US$ ${fmtNumber(state.annualWelfare)} M` },
+        { label: 'TIR / IRR del reporte', value: `${fmtNumber(state.s.roi, 2)}%` },
+        { label: 'Beneficio anual neto', value: `US$ ${fmtNumber(state.netAnnualBenefit)} M` },
+        { label: 'Payback simple estimado', value: state.paybackYears ? `${fmtNumber(state.paybackYears, 1)} años` : 'No recupera' },
+      ];
+      metricsEl.innerHTML = cards.map(c => `
+        <div class="card metric-card">
+          <div class="k">${c.label}</div>
+          <div class="v">${c.value}</div>
+        </div>
+      `).join('');
+    }
+
+    function renderMiniMetrics(state) {
+      const items = [
+        ['Trade SAC', state.s.trade],
+        ['Población SAC', state.s.population],
+        ['PIB pc SAC', state.s.gdp],
+        ['Trade corredor', state.s.corridorTrade],
+        ['PIB pc corredor', state.s.corridorGdp],
+      ];
+      miniMetricsEl.innerHTML = items.map(([n,v]) => `
+        <div class="mini-item">
+          <div class="n">${n}</div>
+          <div class="x">${fmtNumber(v, 2)}%</div>
+        </div>
+      `).join('');
+
+      selectedScenarioSummary.innerHTML = `
+        <strong>${state.s.title}</strong><br>
+        <span style="display:inline-block;margin:8px 0;padding:6px 10px;border-radius:999px;background:#e2e8f0;color:#0f172a;font-weight:800;font-size:.82rem;">${state.s.tag}</span><br>
+        ${state.s.description}<br>
+        Inversión base: <strong>US$ ${fmtNumber(state.s.investment)} M</strong> · TIR: <strong>${fmtNumber(state.s.roi, 2)}%</strong> · Ganancia anual base: <strong>US$ ${fmtNumber(state.s.annualWelfare)} M</strong>.
+      `;
+
+      quickReading.innerHTML = `
+        Con una penalización fronteriza de <strong>${state.borderPenalty}%</strong>, la ganancia anual ajustada queda en
+        <strong>US$ ${fmtNumber(state.annualWelfare)} M</strong>. El beneficio neto anual es
+        <strong>${state.netAnnualBenefit >= 0 ? 'positivo' : 'negativo'}</strong> y el mayor beneficio territorial estimado corresponde a
+        <strong>${[...state.adjustedAreas].sort((a,b)=>b.adjusted-a.adjusted)[0].name}</strong>. La lectura clave es comparar siempre tres escalas: promedio SAC, efecto dentro del corredor y máximo local.
+      `;
+    }
+
+    const radarCtx = document.getElementById('radarChart');
+    const barCtx = document.getElementById('barChart');
+
+    const radarChart = new Chart(radarCtx, {
+      type: 'radar',
+      data: { labels: [], datasets: [] },
+      options: {
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom' } },
+        scales: { r: { beginAtZero: true, grid: { color: '#e2e8f0' }, angleLines: { color: '#e2e8f0' }, pointLabels: { color: '#334155' } } }
+      }
+    });
+
+    const barChart = new Chart(barCtx, {
+      type: 'bar',
+      data: { labels: [], datasets: [] },
+      options: {
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: '#334155' }, grid: { display: false } },
+          y: { ticks: { color: '#334155' }, grid: { color: '#e2e8f0' } }
+        }
+      }
+    });
+
+    function renderCharts(state) {
+      radarChart.data.labels = ['Trade', 'Población', 'PIB pc', 'Productividad', 'Salarios'];
+      radarChart.data.datasets = [
+        {
+          label: 'Impacto promedio SAC',
+          data: [state.s.trade, state.s.population, state.s.gdp, state.s.productivity, state.s.wages],
+          borderColor: '#0f172a',
+          backgroundColor: 'rgba(15,23,42,.22)',
+          pointBackgroundColor: '#0f172a'
+        },
+        {
+          label: 'Máximo / corredor',
+          data: [state.s.maxTrade, state.s.maxPopulation, state.s.maxGdp, state.s.maxProductivity, state.s.maxWages],
+          borderColor: '#94a3b8',
+          backgroundColor: 'rgba(148,163,184,.18)',
+          pointBackgroundColor: '#94a3b8'
+        }
+      ];
+      radarChart.update();
+
+      barChart.data.labels = state.adjustedAreas.map(a => a.name);
+      barChart.data.datasets = [{
+        data: state.adjustedAreas.map(a => a.adjusted),
+        backgroundColor: state.adjustedAreas.map(a => a.adjusted >= 0 ? '#0f766e' : '#b91c1c'),
+        borderRadius: 10,
+      }];
+      barChart.update();
+    }
+
+    function normalizeText(value) {
+      return String(value || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[._-]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    function detectScenario(title) {
+      const n = normalizeText(title);
+      for (const [key, aliases] of Object.entries(scenarioDefinitions)) {
+        if (aliases.some(alias => n.includes(normalizeText(alias)))) return key;
+      }
+      return null;
+    }
+
+    function uniqueCustomMetricKey(title) {
+      return `custom:${normalizeText(title).slice(0, 60) || 'indicador'}`;
+    }
+
+    function detectMetric(title) {
+      const n = normalizeText(title);
+      for (const [key, aliases] of Object.entries(metricDefinitions)) {
+        if (aliases.some(alias => n.includes(normalizeText(alias)))) return key;
+      }
+      return uniqueCustomMetricKey(title);
+    }
+
+    function uniqueLayerTitle(layer) {
+      return layer.title || layer.id || 'Capa sin título';
+    }
+
+    function buildArcgisControlModel() {
+      arcgisControlModel = {};
+
+      arcgisOperationalLayers.forEach(layer => {
+        const title = uniqueLayerTitle(layer);
+        const searchTitle = layer._dashboardSearchTitle || title;
+        const scenarioKey = layer._dashboardScenarioKey || detectScenario(searchTitle);
+        if (!scenarioOrder.includes(scenarioKey)) return;
+
+        const metricKey = detectMetric(searchTitle);
+        if (!arcgisControlModel[scenarioKey]) arcgisControlModel[scenarioKey] = {};
+        if (!arcgisControlModel[scenarioKey][metricKey]) arcgisControlModel[scenarioKey][metricKey] = [];
+        arcgisControlModel[scenarioKey][metricKey].push(layer);
+      });
+
+      if (arcgisControlModel[currentScenario]) {
+        currentComparison = currentScenario;
+      } else {
+        currentComparison = scenarioOrder.find(key => arcgisControlModel[key]) || currentScenario;
+      }
+
+      const metricKeys = Object.keys(arcgisControlModel[currentComparison] || {});
+      currentMetric = metricKeys.includes(currentMetric) ? currentMetric : (metricKeys[0] || null);
+    }
+
+    function getScenarioLabel(key) {
+      return scenarioLabels[key] || key || 'Escenario no detectado';
+    }
+
+    function getMetricLabel(key) {
+      if (!key) return 'Sin indicador disponible';
+      if (metricLabels[key]) return metricLabels[key];
+      if (key.startsWith('custom:')) {
+        const layers = (arcgisControlModel[currentComparison] || {})[key] || [];
+        return layers[0] ? uniqueLayerTitle(layers[0]) : 'Indicador';
+      }
+      return key;
+    }
+
+    function renderComparisonTabs() {
+      const available = scenarioOrder.filter(key => arcgisControlModel[key]);
+      arcgisScenarioSelect.innerHTML = '';
+
+      scenarioOrder.forEach(key => {
+        const opt = document.createElement('option');
+        opt.value = key;
+        opt.textContent = getScenarioLabel(key) + (arcgisControlModel[key] ? '' : ' — sin capas detectadas');
+        opt.disabled = !arcgisControlModel[key];
+        arcgisScenarioSelect.appendChild(opt);
+      });
+      arcgisScenarioSelect.value = currentComparison;
+
+      if (!available.length) {
+        comparisonTabs.innerHTML = 'No se detectaron grupos de Escenario 1, Escenario 2 o Escenario 3 en el WebMap. Revisa que los grupos o capas incluyan esos nombres.';
+        return;
+      }
+
+      comparisonTabs.innerHTML = `<strong>Escenario activo del mapa:</strong> ${getScenarioLabel(currentComparison)}. Solo se muestran indicadores de este grupo.`;
+    }
+
+    function renderMetricTabs() {
+      metricTabs.innerHTML = '';
+      arcgisMetricSelect.innerHTML = '';
+      const metrics = Object.keys(arcgisControlModel[currentComparison] || {});
+
+      if (!metrics.length) {
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = 'Sin indicadores detectados';
+        arcgisMetricSelect.appendChild(opt);
+        return;
+      }
+
+      metrics.forEach((key) => {
+        const label = getMetricLabel(key);
+        const btn = document.createElement('button');
+        btn.className = `metric-tab ${key === currentMetric ? 'active' : ''}`;
+        btn.textContent = label;
+        btn.onclick = () => setArcgisMetric(key);
+        metricTabs.appendChild(btn);
+
+        const opt = document.createElement('option');
+        opt.value = key;
+        opt.textContent = label;
+        arcgisMetricSelect.appendChild(opt);
+      });
+      arcgisMetricSelect.value = currentMetric || '';
+    }
+
+    function syncArcgisWithDashboardScenario() {
+      if (arcgisControlModel[currentScenario]) {
+        setArcgisScenario(currentScenario, true);
+      } else {
+        currentComparison = currentScenario;
+        currentMetric = null;
+        renderComparisonTabs();
+        renderMetricTabs();
+        renderMap();
+      }
+    }
+
+    function setArcgisScenario(key, resetMetric = true) {
+      currentComparison = key;
+      const metrics = Object.keys(arcgisControlModel[currentComparison] || {});
+      if (resetMetric || !metrics.includes(currentMetric)) currentMetric = metrics[0] || null;
+      renderComparisonTabs();
+      renderMetricTabs();
+      renderMap();
+    }
+
+    function setArcgisMetric(key) {
+      currentMetric = key;
+      renderMetricTabs();
+      renderMap();
+    }
+
+    function setLayerAndParentsVisible(layer, visible) {
+      layer.visible = visible;
+      let parent = layer.parent;
+      while (parent && parent.type === 'group') {
+        parent.visible = true;
+        parent = parent.parent;
+      }
+    }
+
+    function renderMap() {
+      if (!arcgisOperationalLayers.length) return;
+      const selectedLayers = currentMetric ? ((arcgisControlModel[currentComparison] || {})[currentMetric] || []) : [];
+
+      arcgisOperationalLayers.forEach(layer => setLayerAndParentsVisible(layer, false));
+      selectedLayers.forEach(layer => setLayerAndParentsVisible(layer, true));
+
+      const scenarioLabel = getScenarioLabel(currentComparison);
+      const metricLabel = getMetricLabel(currentMetric);
+      mapCaption.innerHTML = `<strong>${scenarioLabel}</strong> · ${metricLabel}`;
+
+      if (selectedLayers.length) {
+        layerStatus.innerHTML = `Mostrando indicador <strong>${metricLabel}</strong> del grupo <strong>${scenarioLabel}</strong>. Capa activa: <strong>${selectedLayers.map(uniqueLayerTitle).join('</strong>, <strong>')}</strong>.`;
+        if (arcgisView) {
+          const firstLayer = selectedLayers[0];
+          firstLayer.when(() => {
+            if (firstLayer.fullExtent) arcgisView.goTo(firstLayer.fullExtent).catch(() => {});
+          }).catch(() => {});
+        }
+      } else {
+        layerStatus.innerHTML = `No hay indicadores detectados para <strong>${scenarioLabel}</strong>. El mapa queda sin capas visibles para evitar mezclar escenarios.`;
+      }
+    }
+
+    function collectArcgisLayers(layer, inheritedScenarioKey = null, inheritedTitle = '') {
+      const layerTitle = uniqueLayerTitle(layer);
+      const scenarioFromThisLayer = detectScenario(layerTitle) || inheritedScenarioKey;
+      const combinedTitle = `${inheritedTitle} ${layerTitle}`.trim();
+
+      if (layer.layers && layer.layers.length) {
+        return layer.layers.toArray().flatMap(child => collectArcgisLayers(child, scenarioFromThisLayer, combinedTitle));
+      }
+
+      layer._dashboardScenarioKey = scenarioFromThisLayer;
+      layer._dashboardSearchTitle = combinedTitle;
+      return [layer];
+    }
+
+    function initArcGIS() {
+      if (!window.require) {
+        mapCaption.textContent = 'No se pudo cargar la librería de ArcGIS JavaScript API.';
+        return;
+      }
+
+      require([
+        'esri/WebMap',
+        'esri/views/MapView',
+        'esri/widgets/Legend',
+        'esri/widgets/Expand',
+        'esri/widgets/Home',
+        'esri/widgets/LayerList'
+      ], function(WebMap, MapView, Legend, Expand, Home, LayerList) {
+        const webmap = new WebMap({
+          portalItem: { id: ARCGIS_ITEM_ID }
+        });
+
+        arcgisView = new MapView({
+          container: 'arcgisMap',
+          map: webmap,
+          center: [-62, -23],
+          zoom: 4,
+          popup: { dockEnabled: true, dockOptions: { position: 'bottom-right', breakpoint: false } }
+        });
+
+        arcgisView.ui.add(new Home({ view: arcgisView }), 'top-left');
+
+        const legend = new Legend({ view: arcgisView });
+        const legendExpand = new Expand({ view: arcgisView, content: legend, expanded: false, expandTooltip: 'Leyenda' });
+        arcgisView.ui.add(legendExpand, 'bottom-left');
+
+        const layerList = new LayerList({ view: arcgisView });
+        const layerExpand = new Expand({ view: arcgisView, content: layerList, expanded: false, expandTooltip: 'Capas' });
+        arcgisView.ui.add(layerExpand, 'top-right');
+
+        arcgisView.when(() => webmap.when(() => {
+          arcgisOperationalLayers = webmap.layers.toArray().flatMap(layer => collectArcgisLayers(layer));
+
+          arcgisOperationalLayers.forEach(layer => setLayerAndParentsVisible(layer, false));
+          buildArcgisControlModel();
+          renderComparisonTabs();
+          renderMetricTabs();
+          renderMap();
+        })).catch(error => {
+          console.error(error);
+          mapCaption.textContent = 'No se pudo cargar el elemento de ArcGIS Online. Revisa que el item sea público o que tengas sesión con permisos.';
+          layerStatus.textContent = error && error.message ? error.message : 'Error de carga del mapa.';
+        });
+      });
+    }
+
+    function updateAll() {
+      borderPenaltyLabel.textContent = `${borderPenaltyEl.value}%`;
+      const state = computeState();
+      renderMetricCards(state);
+      renderScenarioStory(state);
+      renderMiniMetrics(state);
+      renderCharts(state);
+    }
+
+    scenarioEl.addEventListener('change', () => {
+      currentScenario = scenarioEl.value;
+      const s = scenarios[currentScenario];
+      investmentEl.value = s.investment;
+      maintenanceEl.value = s.maintenance;
+      borderPenaltyEl.value = 0;
+      updateAll();
+      syncArcgisWithDashboardScenario();
+    });
+    investmentEl.addEventListener('input', updateAll);
+    maintenanceEl.addEventListener('input', updateAll);
+    borderPenaltyEl.addEventListener('input', updateAll);
+
+    function openModal() {
+      methodologyModal.classList.add('open');
+      methodologyModal.setAttribute('aria-hidden', 'false');
+    }
+    function closeModal() {
+      methodologyModal.classList.remove('open');
+      methodologyModal.setAttribute('aria-hidden', 'true');
+    }
+    openMethodology.addEventListener('click', openModal);
+    openMethodologySecondary.addEventListener('click', openModal);
+    closeMethodology.addEventListener('click', closeModal);
+    methodologyModal.addEventListener('click', (e) => {
+      if (e.target === methodologyModal) closeModal();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeModal();
+    });
+
+    arcgisScenarioSelect.addEventListener('change', () => {
+      const key = arcgisScenarioSelect.value;
+      if (scenarioOrder.includes(key)) {
+        scenarioEl.value = key;
+        currentScenario = key;
+        const s = scenarios[currentScenario];
+        investmentEl.value = s.investment;
+        maintenanceEl.value = s.maintenance;
+        borderPenaltyEl.value = 0;
+        updateAll();
+      }
+      setArcgisScenario(key, true);
+    });
+    arcgisMetricSelect.addEventListener('change', () => setArcgisMetric(arcgisMetricSelect.value));
+
+    initArcGIS();
+    updateAll();
+  </script>
+</body>
+</html>
