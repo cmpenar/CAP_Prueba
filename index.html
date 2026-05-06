@@ -307,8 +307,8 @@
       <div class="hero-top">
         <div>
           <div style="text-transform: uppercase; letter-spacing: .18em; font-size: .78rem; opacity: .82;">Capricornio App</div>
-          <h1>Dashboard + calculadora del Corredor Capricornio</h1>
-          <p>Micrositio de resultados del modelo espacial para evaluar conectividad, mercado, migración y crecimiento territorial.</p>
+          <h1>Efectos sobre la población y el crecimiento derivados de la mejora del Corredor de Capricornio.</h1>
+          <p>Dashboard + calculadora del Corredor Capricornio</p>
         </div>
         <div style="display:flex; gap:10px; flex-wrap:wrap;">
           <button class="ghost-btn" id="openMethodology">Metodología del modelo</button>
@@ -542,8 +542,7 @@
 
         <section class="card" id="mapas">
           <h3 class="section-title">Mapas del corredor</h3>
-          <div class="metric-tabs" id="metricTabs"></div>
-
+          
           <div class="map-select-row" style="margin-top:24px;">
             <div>
               <label for="arcgisScenarioSelect">Escenario activo</label>
@@ -555,7 +554,7 @@
             </div>
           </div>
 <div id="arcgisMap" class="arcgis-map" aria-label="Mapa interactivo de ArcGIS Online" style="margin-top:24px;"></div>
-          <div class="layer-status" id="layerStatus">El selector de indicadores se llena con las capas detectadas dentro del escenario activo. Al cambiar de escenario, se ocultan las capas del escenario anterior y se carga un indicador por defecto.</div>
+          
         </section>
       </main>
     </section>
@@ -764,9 +763,7 @@
     const quickReading = document.getElementById('quickReading');
     const scenarioStory = document.getElementById('scenarioStory');
     const scaleGrid = document.getElementById('scaleGrid');
-    const metricTabs = document.getElementById('metricTabs');
-    const layerStatus = document.getElementById('layerStatus');
-    const arcgisScenarioSelect = document.getElementById('arcgisScenarioSelect');
+            const arcgisScenarioSelect = document.getElementById('arcgisScenarioSelect');
     const arcgisMetricSelect = document.getElementById('arcgisMetricSelect');
     const openMethodology = document.getElementById('openMethodology');
     const openMethodologySecondary = document.getElementById('openMethodologySecondary');
@@ -1047,8 +1044,8 @@
     }
 
     function renderMetricTabs() {
-      metricTabs.innerHTML = '';
       arcgisMetricSelect.innerHTML = '';
+
       const metrics = Object.keys(arcgisControlModel[currentComparison] || {});
 
       if (!metrics.length) {
@@ -1061,17 +1058,14 @@
 
       metrics.forEach((key) => {
         const label = getMetricLabel(key);
-        const btn = document.createElement('button');
-        btn.className = `metric-tab ${key === currentMetric ? 'active' : ''}`;
-        btn.textContent = label;
-        btn.onclick = () => setArcgisMetric(key);
-        metricTabs.appendChild(btn);
 
         const opt = document.createElement('option');
         opt.value = key;
         opt.textContent = label;
+
         arcgisMetricSelect.appendChild(opt);
       });
+
       arcgisMetricSelect.value = currentMetric || '';
     }
 
@@ -1122,7 +1116,7 @@
       const metricLabel = getMetricLabel(currentMetric);
 
       if (selectedLayers.length) {
-        layerStatus.innerHTML = `Mostrando indicador <strong>${metricLabel}</strong> del grupo <strong>${scenarioLabel}</strong>. Capa activa: <strong>${selectedLayers.map(uniqueLayerTitle).join('</strong>, <strong>')}</strong>.`;
+        
         if (arcgisView) {
           const firstLayer = selectedLayers[0];
           firstLayer.when(() => {
@@ -1130,7 +1124,7 @@
           }).catch(() => {});
         }
       } else {
-        layerStatus.innerHTML = `No hay indicadores detectados para <strong>${scenarioLabel}</strong>. El mapa queda sin capas visibles para evitar mezclar escenarios.`;
+        
       }
     }
 
@@ -1150,7 +1144,7 @@
 
     function initArcGIS() {
       if (!window.require) {
-        layerStatus.textContent = 'No se pudo cargar la librería de ArcGIS JavaScript API.';
+        
         return;
       }
 
@@ -1194,8 +1188,8 @@
           renderMap();
         })).catch(error => {
           console.error(error);
-          layerStatus.textContent = 'No se pudo cargar el elemento de ArcGIS Online. Revisa que el item sea público o que tengas sesión con permisos.';
-          layerStatus.textContent = error && error.message ? error.message : 'Error de carga del mapa.';
+          
+          
         });
       });
     }
